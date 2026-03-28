@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Neon Snake | Global Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #020617;
+            --primary: #10b981;
+            --accent: #f43f5e;
+            --text: #f8fafc;
+            --panel-bg: rgba(30, 41, 59, 0.5);
+        }
+
+        body {
+            background: var(--bg-color);
+            color: var(--text);
+            font-family: 'Orbitron', sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .game-container-horizontal {
+            display: flex;
+            align-items: center;
+            gap: 40px;
+            padding: 20px;
+        }
+
+        .side-panel-left {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            width: 220px;
+        }
+
+        .side-panel-right {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 220px;
+        }
+
+        .stat-card {
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 20px;
+            border: 1px solid #334155;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .stat-label { font-size: 10px; color: #94a3b8; letter-spacing: 2px; margin-bottom: 5px; }
+        .stat-value { font-size: 28px; font-weight: 900; color: #fff; text-shadow: 0 0 10px var(--primary); }
+
+        .canvas-wrapper {
+            position: relative;
+            border: 6px solid #334155;
+            border-radius: 24px;
+            box-shadow: 0 0 60px rgba(16, 185, 129, 0.15);
+        }
+
+        canvas { 
+            display: block; 
+            background: #000; 
+            width: 700px; 
+            height: 700px; 
+        }
+
+        .d-pad { display: grid; grid-template-areas: ". up ." "left down right"; gap: 10px; }
+        .ctrl-btn { 
+            width: 65px; height: 65px; background: #1e293b; border: 2px solid #334155; 
+            border-radius: 15px; color: white; font-size: 24px; cursor: pointer;
+            transition: 0.2s;
+        }
+        .ctrl-btn:active { background: var(--primary); transform: scale(0.9); }
+        .up { grid-area: up; } .left { grid-area: left; } .down { grid-area: down; } .right { grid-area: right; }
+
+        .overlay {
+            position: absolute; inset: 0; background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center;
+            z-index: 100; border-radius: 18px; text-align: center;
+        }
+        .hidden { display: none; }
+
+        button.action-btn {
+            background: var(--primary); color: white; border: none; padding: 15px 30px;
+            border-radius: 12px; font-weight: bold; font-family: 'Orbitron'; cursor: pointer;
+            margin-top: 20px; transition: 0.3s;
+        }
+        button.action-btn:hover { box-shadow: 0 0 20px var(--primary); transform: translateY(-3px); }
+    </style>
+</head>
+<body>
+
+    <div class="game-container-horizontal">
+        
+        <aside class="side-panel-left">
+            <h3 style="font-size: 14px; color: var(--primary); margin-bottom: 10px;">CONTROLS</h3>
+            <div class="d-pad">
+                <button class="ctrl-btn up" id="up">↑</button>
+                <button class="ctrl-btn left" id="left">←</button>
+                <button class="ctrl-btn down" id="down">↓</button>
+                <button class="ctrl-btn right" id="right">→</button>
+            </div>
+            <button id="muteBtn" onclick="game.toggleAudio()" 
+                    style="background: #0f172a; border: 1px solid #334155; color: var(--primary); 
+                           padding: 8px 15px; border-radius: 10px; margin-top: 20px; 
+                           cursor: pointer; font-family: 'Orbitron'; font-size: 10px; width: 140px;">
+                AUDIO: ON 🔊
+            </button>
+        </aside>
+
+        <div class="canvas-wrapper">
+            <canvas id="gameCanvas"></canvas>
+            <div id="overlay" class="overlay">
+                <div>
+                    <h1 id="overlayTitle" style="color:var(--primary); font-size: 48px; margin-bottom: 10px;">NEON SNAKE</h1>
+                    <p id="overlaySub">ARCADE EDITION</p>
+                    <button class="action-btn" onclick="game.startGame()">START GAME</button>
+                    <button class="action-btn" style="background:#8b5cf6;" onclick="document.getElementById('shopModal').classList.remove('hidden')">SKIN SHOP</button>
+                </div>
+            </div>
+        </div>
+
+        <aside class="side-panel-right">
+            <div class="stat-card">
+                <div class="stat-label">SCORE</div>
+                <div class="stat-value" id="currentScore">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">WALLET</div>
+                <div class="stat-value" style="color: #facc15;" id="totalCoins">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">HIGH SCORE</div>
+                <div class="stat-value" style="color: var(--accent);" id="highScore">0</div>
+            </div>
+        </aside>
+
+    </div>
+
+    <div id="shopModal" class="overlay hidden">
+        <div style="background: #1e293b; padding: 40px; border-radius: 30px; border: 2px solid var(--primary); width: 500px;">
+            <h2 style="margin-bottom: 20px;">SKIN SHOP</h2>
+            <div style="display: flex; gap: 20px; justify-content: center; margin-bottom: 30px;">
+                <div onclick="game.buySkin('default', 0)" style="cursor:pointer;">
+                    <div style="width:50px; height:50px; background:#10b981; border-radius:10px; margin:auto;"></div>
+                    <p style="font-size:10px; margin-top:5px;">CLASSIC</p>
+                </div>
+                <div onclick="game.buySkin('neon', 500)" style="cursor:pointer;">
+                    <div style="width:50px; height:50px; background:#00f2ff; border-radius:10px; box-shadow:0 0 10px #00f2ff; margin:auto;"></div>
+                    <p style="font-size:10px; margin-top:5px;">NEON</p>
+                </div>
+                <div onclick="game.buySkin('lava', 1000)" style="cursor:pointer;">
+                    <div style="width:50px; height:50px; background:#ff4d00; border-radius:10px; box-shadow:0 0 10px #ff4d00; margin:auto;"></div>
+                    <p style="font-size:10px; margin-top:5px;">LAVA</p>
+                </div>
+            </div>
+            <button class="action-btn" style="background:#475569;" onclick="document.getElementById('shopModal').classList.add('hidden')">CLOSE</button>
+        </div>
+    </div>
+
+    <script>
+        var solveSimpleChallenge = function() {};
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSnd(freq, type, dur, vol) {
+            if (game && game.isMuted) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + dur);
+        }
+
+        class Shockwave {
+            constructor(x, y, color) {
+                this.x = x; this.y = y; this.color = color;
+                this.radius = 5; this.alpha = 1; this.speed = 5;
+            }
+            update() { this.radius += this.speed; this.alpha -= 0.04; }
+            draw(ctx) {
+                if (this.alpha <= 0) return;
+                ctx.save(); ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.strokeStyle = this.color; ctx.lineWidth = 4;
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.stroke(); ctx.restore();
+            }
+        }
+
+        class SnakeGame {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.canvas.width = 700; this.canvas.height = 700;
+                this.tileSize = 35; this.tileCount = 20;
+                this.isMuted = false;
+                this.skins = {
+                    default: { color: '#10b981', head: '#059669', glow: true, effect: '#10b981' },
+                    neon: { color: '#00f2ff', head: '#ffffff', glow: true, effect: '#00f2ff' },
+                    lava: { color: '#ff4d00', head: '#ffff00', glow: true, effect: '#ff4d00' }
+                };
+                this.totalCoins = parseInt(localStorage.getItem('snakeCoins')) || 0;
+                this.unlockedSkins = JSON.parse(localStorage.getItem('unlockedSkins')) || ['default'];
+                this.currentSkin = localStorage.getItem('selectedSkin') || 'default';
+                this.highScore = localStorage.getItem('snakeHighScore') || 0;
+                this.effects = []; this.isGameOver = true; this.canDir = true;
+                this.init();
+            }
+
+            toggleAudio() {
+                this.isMuted = !this.isMuted;
+                const btn = document.getElementById('muteBtn');
+                if (this.isMuted) {
+                    btn.innerText = "AUDIO: OFF 🔇";
+                    btn.style.color = "#64748b";
+                } else {
+                    if (audioCtx.state === 'suspended') audioCtx.resume();
+                    btn.innerText = "AUDIO: ON 🔊";
+                    btn.style.color = "var(--primary)";
+                }
+            }
+
+            init() {
+                this.reset();
+                document.addEventListener('keydown', (e) => this.handleInput(e));
+                ['up', 'down', 'left', 'right'].forEach(d => {
+                    document.getElementById(d).onclick = () => this.setDir(d);
+                });
+                this.gameLoop();
+            }
+
+            reset() {
+                this.snake = [{x: 10, y: 10}, {x: 10, y: 11}, {x: 10, y: 12}];
+                this.food = {x: 5, y: 5};
+                this.dx = 0; this.dy = -1;
+                this.score = 0; this.speed = 120;
+                this.updateUI();
+            }
+
+            updateUI() {
+                document.getElementById('totalCoins').innerText = this.totalCoins;
+                document.getElementById('highScore').innerText = this.highScore;
+                document.getElementById('currentScore').innerText = this.score;
+            }
+
+            buySkin(id, price) {
+                if (this.unlockedSkins.includes(id)) {
+                    this.currentSkin = id;
+                    localStorage.setItem('selectedSkin', id);
+                    document.getElementById('shopModal').classList.add('hidden');
+                    return;
+                }
+                if (this.totalCoins >= price) {
+                    this.totalCoins -= price;
+                    this.unlockedSkins.push(id);
+                    this.currentSkin = id;
+                    localStorage.setItem('snakeCoins', this.totalCoins);
+                    localStorage.setItem('unlockedSkins', JSON.stringify(this.unlockedSkins));
+                    localStorage.setItem('selectedSkin', id);
+                    this.updateUI();
+                    document.getElementById('shopModal').classList.add('hidden');
+                }
+            }
+
+            startGame() {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                this.reset();
+                this.isGameOver = false;
+                this.spawnFood();
+                document.getElementById('overlay').classList.add('hidden');
+            }
+
+            handleInput(e) {
+                const keys = {ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right'};
+                if(keys[e.key]) this.setDir(keys[e.key]);
+            }
+
+            setDir(dir) {
+                if (this.isGameOver || !this.canDir) return;
+                let moved = false;
+                if (dir === 'up' && this.dy === 0) { this.dx = 0; this.dy = -1; moved = true; }
+                else if (dir === 'down' && this.dy === 0) { this.dx = 0; this.dy = 1; moved = true; }
+                else if (dir === 'left' && this.dx === 0) { this.dx = -1; this.dy = 0; moved = true; }
+                else if (dir === 'right' && this.dx === 0) { this.dx = 1; this.dy = 0; moved = true; }
+                if(moved) {
+                    this.canDir = false;
+                    playSnd(440, 'sine', 0.05, 0.02);
+                }
+            }
+
+            spawnFood() {
+                this.food = { x: Math.floor(Math.random() * 20), y: Math.floor(Math.random() * 20) };
+                if(this.snake.some(p => p.x === this.food.x && p.y === this.food.y)) this.spawnFood();
+            }
+
+            update() {
+                if(this.isGameOver || (this.dx===0 && this.dy===0)) return;
+                this.canDir = true;
+                const head = {x: this.snake[0].x + this.dx, y: this.snake[0].y + this.dy};
+
+                if(head.x<0 || head.x>=20 || head.y<0 || head.y>=20 || this.snake.some(p=>p.x===head.x && p.y===head.y)) {
+                    this.isGameOver = true;
+                    playSnd(150, 'sawtooth', 0.4, 0.15);
+                    document.getElementById('overlayTitle').innerText = "GAME OVER!";
+                    document.getElementById('overlay').classList.remove('hidden');
+                    if(this.score > this.highScore) {
+                        this.highScore = this.score;
+                        localStorage.setItem('snakeHighScore', this.highScore);
+                    }
+                    this.updateUI();
+                    return;
+                }
+
+                this.snake.unshift(head);
+                if(head.x===this.food.x && head.y===this.food.y) {
+                    this.score += 10; this.totalCoins += 5;
+                    this.updateUI();
+                    playSnd(880, 'square', 0.1, 0.1);
+                    const s = this.skins[this.currentSkin];
+                    this.effects.push(new Shockwave(head.x*35+17, head.y*35+17, s.effect));
+                    this.spawnFood();
+                    localStorage.setItem('snakeCoins', this.totalCoins);
+                } else { this.snake.pop(); }
+                
+                this.effects.forEach(e => e.update());
+                this.effects = this.effects.filter(e => e.alpha > 0);
+            }
+
+            draw() {
+                this.ctx.fillStyle = '#020617';
+                this.ctx.fillRect(0, 0, 700, 700);
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+                for (let i = 0; i <= 20; i++) {
+                    this.ctx.beginPath(); this.ctx.moveTo(i*35, 0); this.ctx.lineTo(i*35, 700); this.ctx.stroke();
+                    this.ctx.beginPath(); this.ctx.moveTo(0, i*35); this.ctx.lineTo(700, i*35); this.ctx.stroke();
+                }
+                this.effects.forEach(e => e.draw(this.ctx));
+                const s = this.skins[this.currentSkin];
+                this.snake.forEach((p, i) => {
+                    this.ctx.fillStyle = i === 0 ? s.head : s.color;
+                    if(s.glow) { this.ctx.shadowBlur = 15; this.ctx.shadowColor = s.color; }
+                    this.ctx.beginPath(); this.ctx.roundRect(p.x*35+2, p.y*35+2, 31, 31, 8);
+                    this.ctx.fill(); this.ctx.shadowBlur = 0;
+                });
+                this.ctx.fillStyle = '#f43f5e';
+                this.ctx.shadowBlur = 20; this.ctx.shadowColor = '#f43f5e';
+                this.ctx.beginPath(); this.ctx.arc(this.food.x*35+17, this.food.y*35+17, 12, 0, Math.PI*2);
+                this.ctx.fill(); this.ctx.shadowBlur = 0;
+            }
+
+            gameLoop() {
+                this.update(); this.draw();
+                setTimeout(() => this.gameLoop(), this.speed);
+            }
+        }
+        const game = new SnakeGame();
+    </script>
+</body>
+</html>
